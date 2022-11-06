@@ -1,0 +1,79 @@
+---
+- hosts: test-server
+  gather_facts: false
+  tasks:
+    - name: update server
+      shell: sudo apt update -y
+
+    - name: install mysql 
+      shell: sudo apt install mysql-server 
+      
+    - name: start the service
+      shell: sudo systemctl start mysql.service
+      
+    - name: configure mysql
+      shell: sudo mysql
+      
+    - name: root user password authentication
+      command: ALTER USER 'root'@'host' IDENTIFIED WITH mysql_native_password BY 'password';
+      
+    - name: exit from mysql
+      command: exit
+      
+    - name: login as root user with password
+      command: mysql -u root -p
+     
+    - name: get back to default authentication method
+      command: ALTER USER 'root'@'host' IDENTIFIED WITH auth_socket;
+
+    - name: update mysql root password for all root accounts
+      mysql_user:
+        check_implicit_admin: true
+        login_user: root
+        name: root
+        priv: '*.*:ALL,GRANT'
+        host: "{{ item }}"
+        password: "{{ new_mysql_root_password }}"
+      
+    - name: checking status
+      command: systemctl status mysql.service
+      
+    - name: moving data directory of mysql to new location in server
+      shell: sudo rsync -av /var/lib/mysql /mnt/volume-nyc1-01
+      
+    - name: taking backup
+      shell: sudo mv /var/lib/mysql /var/lib/mysql.bak
+      
+    - name: editing file
+      lineinfile:
+        dest: /etc/mysql/mysql.conf.d/mysqld.cnf
+        line: "datadir=/mnt/volume-nyc1-01/mysql"
+        state: present
+        create: True
+        
+    - name: editing file2
+      lineinfile:
+        dest: /etc/apparmor.d/tunables/alias
+        line: "alias /var/lib/mysql/ -> /mnt/volume-nyc1-01/mysql/,"
+        state: present
+        create: True
+        
+    - name: restarting service
+      shell: sudo systemctl restart apparmor
+      
+    - name: creating a dir
+      shell: sudo mkdir /var/lib/mysql/mysql -p
+      
+    - name: starting mysql
+      shell: sudo systemctl start mysql
+      
+    - name: cheking status
+      shell: sudo systemctl status mysql
+      
+    - name: removing backup file
+      shell: sudo rm -Rf /var/lib/mysql.bak 
+    - name: restarting the mysql service
+      shell: sudo systemctl restart mysql
+    - name: checking the satus again
+      shell: sudo systemctl status mysql
+  
