@@ -1,0 +1,19 @@
+Cronjob to be scheduled 
+
+0 0 * * * ./test.sh
+
+./test.sh time /tmp/  or ./test.sh size /tmp/
+
+LOGDIR="$2"
+LOGNAME="log.txt"
+LOGNAME_SIZE=$(ls -l $LOGNAME | tr -s " " | cut -d" " -f5)
+cd $LOGDIR 
+
+if ("$1"=="time"); then
+cp log.txt log.txt.1
+> log.txt
+
+elif ["$1"=="size"] && [$LOGNAME_SIZE >= "1000000"]; then
+cp log.txt log.txt.1
+> log.txt
+ 
